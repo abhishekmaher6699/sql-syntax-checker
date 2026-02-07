@@ -62,6 +62,10 @@ def validateBooleanExpr(tokens):
             depth += 1
         elif tok == ")":
             depth -= 1
+        elif depth == 0 and tok == "between":
+            return validateComparison(tokens)
+        elif depth == 0 and tok == "in":
+            return validateComparison(tokens)
 
         # split ONLY on top-level AND / OR
         elif depth == 0 and tok in LOGICAL_OPS:
@@ -84,6 +88,112 @@ def validateBooleanExpr(tokens):
     return validateComparison(tokens)
 
 def validateComparison(tokens):
+    tokens = stripOuterParens(tokens)
+
+
+    depth = 0
+    for i, tok in enumerate(tokens):
+        if tok == "(":
+            depth += 1
+        elif tok == ")":
+            depth -= 1
+
+        elif depth == 0 and tok == "in":
+            lhs = tokens[:i]
+            rhs = tokens[i + 1:]
+
+            if not lhs or not rhs:
+                return {"error": "Incomplete IN expression"}
+
+            # must start with '(' and end with ')'
+            if rhs[0] != "(" or rhs[-1] != ")":
+                return {"error": "IN requires parenthesized list"}
+
+            items = rhs[1:-1]
+            if not items:
+                return {"error": "IN list cannot be empty"}
+
+            # split on commas at depth 0
+            values = []
+            depth2 = 0
+            start = 0
+            for j, t in enumerate(items):
+                if t == "(":
+                    depth2 += 1
+                elif t == ")":
+                    depth2 -= 1
+                elif t == "," and depth2 == 0:
+                    values.append(items[start:j])
+                    start = j + 1
+
+            values.append(items[start:])
+
+            for v in values:
+                if not v:
+                    return {"error": "Empty value in IN list"}
+                err = validateExpression(v)
+                if err:
+                    return err
+
+            err = validateExpression(lhs)
+            if err:
+                return err
+
+            return None
+
+    depth = 0
+
+    # ---- BETWEEN handling ----
+    for i, tok in enumerate(tokens):
+        if tok == "(":
+            depth += 1
+        elif tok == ")":
+            depth -= 1
+
+        elif depth == 0 and tok == "between":
+            lhs = tokens[:i]
+            rest = tokens[i + 1:]
+
+            if not lhs or not rest:
+                return {"error": "Incomplete BETWEEN expression"}
+
+            # find AND that belongs to BETWEEN
+            depth2 = 0
+            and_index = None
+            for j, t in enumerate(rest):
+                if t == "(":
+                    depth2 += 1
+                elif t == ")":
+                    depth2 -= 1
+                elif depth2 == 0 and t == "and":
+                    and_index = j
+                    break
+
+            if and_index is None:
+                return {"error": "BETWEEN missing AND"}
+
+            low = rest[:and_index]
+            high = rest[and_index + 1:]
+
+            if not low or not high:
+                return {"error": "Incomplete BETWEEN bounds"}
+
+            # validate parts
+            err = validateExpression(lhs)
+            if err:
+                return err
+
+            err = validateExpression(low)
+            if err:
+                return err
+
+            err = validateExpression(high)
+            if err:
+                return err
+
+            return None
+
+    # ---- normal comparison handling ----
     depth = 0
     op_index = None
     op = None
@@ -96,9 +206,7 @@ def validateComparison(tokens):
 
         elif depth == 0 and isOperatorLike(tok):
             if tok not in COMPARISON_OPS:
-                return {
-                    "error": f"Invalid comparator: {tok}"
-                }
+                return {"error": f"Invalid comparator: {tok}"}
             if op is not None:
                 return {"error": "Multiple comparison operators"}
             op = tok
@@ -122,6 +230,7 @@ def validateComparison(tokens):
         return err
 
     return None
+
 
 
 OP_CHARS = set("<>!=")
