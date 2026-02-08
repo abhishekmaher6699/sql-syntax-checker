@@ -1,6 +1,6 @@
 from insert.insert_parser import InsertParser
-from insert.insert_validator import validate_insert
-from insert.insert_suggestions import suggest_insert_fix
+from insert.insert_validator import InsertValidator
+from insert.insert_suggestions import InsertSuggester
 
 
 def run_test(query: str):
@@ -10,8 +10,8 @@ def run_test(query: str):
 
     parser = InsertParser()
     parsed = parser.parse_insert(query)
-    errors = validate_insert(parsed)
-    suggestion = suggest_insert_fix(query, parsed, errors)
+    errors = InsertValidator.validate_insert(parsed)
+    suggestion = InsertSuggester.suggest_insert_fix(query, parsed, errors)
 
     print("\nERRORS:")
     if not errors:
