@@ -1,0 +1,40 @@
+SQL PARSER TEST REPORT
+======================================================================
+Total tests   : 241
+Passed        : 235
+Failed        : 6
+Success rate  : 97.51%
+======================================================================
+
+FAILED CASES:
+----------------------------------------------------------------------
+[141] SELECT (a + 1) * 2, SUM(b) FROM t GROUP BY (a + 1) * 2
+  Expected : PASS
+  Got      : FAIL
+  Error    : {'error': 'Missing comma between SELECT expressions', 'position': 5}
+----------------------------------------------------------------------
+[156] SELECT a + (1 * 2), SUM(b) FROM t GROUP BY (a + (1 * 2))
+  Expected : PASS
+  Got      : FAIL
+  Error    : {'error': 'Missing comma between SELECT expressions', 'position': 6}
+----------------------------------------------------------------------
+[193] SELECT a AS x FROM t ORDER BY y
+  Expected : FAIL
+  Got      : PASS
+  Error    : None
+----------------------------------------------------------------------
+[196] SELECT a, SUM(b) FROM t GROUP BY a ORDER BY b
+  Expected : FAIL
+  Got      : PASS
+  Error    : None
+----------------------------------------------------------------------
+[229] SELECT t.a AS x, SUM(u.b) FROM t JOIN u ON t.id = u.id GROUP BY t.a HAVING x > 1 ORDER BY y DESC LIMIT 5
+  Expected : FAIL
+  Got      : PASS
+  Error    : None
+----------------------------------------------------------------------
+[241] SELECT (((a))), SUM(b) FROM t GROUP BY (((a))) HAVING (((SUM(b)) + 1) > 10) ORDER BY (((a))) LIMIT 1
+  Expected : FAIL
+  Got      : PASS
+  Error    : None
+----------------------------------------------------------------------

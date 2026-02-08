@@ -44,3 +44,13 @@ def consumeAggregate(tokens, i):
 
     inner = tokens[i + 2 : j - 1]
     return j, inner
+
+def extractLimit(tokens):
+    if "limit" not in tokens:
+        return None
+
+    i = tokens.index("limit")
+    start = i + 1
+    end = len(tokens)
+
+    return tokens[start:end]

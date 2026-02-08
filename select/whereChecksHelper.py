@@ -1,16 +1,26 @@
 from select.utils import isQualifiedColumnAt, isColumnToken, consumeAggregate, AGG_FUNCS
 
+# Logical operators for boolean expressions
 LOGICAL_OPS = {"and", "or"}
+
+# Comparison operators
 COMPARISON_OPS = {"=", "!=", "<", ">", "<=", ">="}
+
+# Arithmetic operators for expressions
 ARITHMETIC_OPS = {"+", "-", "*", "/"}
+
+# Characters that may appear in operator tokens
 OP_CHARS = set("<>!=")
 
 
-# Determines if a token visually resembles an operator (validation of correctness happens later)
+# Determines if a token visually resembles an operator.
+# Full correctness is validated later.
 def isOperatorLike(tok):
     return all(c in OP_CHARS for c in tok)
 
-# Extracts tokens belonging to the WHERE clause, stopping at later clauses
+
+# Extracts tokens belonging to the WHERE clause.
+# Stops when a later clause keyword is encountered.
 def extractConditions(tokens):
     if "where" not in tokens:
         return None
@@ -34,31 +44,31 @@ def checkParentheses(tokens):
             depth += 1
         elif tok == ")":
             depth -= 1
-            # Closing before opening
+            # Closing before any opening
             if depth < 0:
                 return {"error": "Unmatched closing parenthesis"}
 
-    # Remaining opens
+    # Remaining unmatched opening parentheses
     if depth != 0:
         return {"error": "Unmatched opening parenthesis"}
 
     return None
 
 
-# Removes redundant outer parentheses that wrap the entire expression
+# Removes redundant outer parentheses wrapping the entire expression
 def stripOuterParens(tokens):
     while tokens and tokens[0] == "(" and tokens[-1] == ")":
         depth = 0
         valid = True
 
-        # Check that the outer parentheses close at the very end
+        # Verify that outer parentheses close at the very end
         for i, tok in enumerate(tokens):
             if tok == "(":
                 depth += 1
             elif tok == ")":
                 depth -= 1
 
-            # Outer parens are not redundant if they close early
+            # If parentheses close early, they are not redundant
             if depth == 0 and i < len(tokens) - 1:
                 valid = False
                 break
@@ -71,19 +81,17 @@ def stripOuterParens(tokens):
     return tokens
 
 
-
-
-# Validates boolean expressions using AND / OR with correct precedence
-def validateBooleanExpr(tokens):
+# Validates boolean expressions with AND / OR and proper precedence
+def validateBooleanExpr(tokens, clause="where"):
     tokens = stripOuterParens(tokens)
     if not tokens:
         return {"error": "Empty expression"}
 
-    # BETWEEN and IN behave like comparisons, not boolean splits
+    # BETWEEN and IN behave as comparisons, not logical splits
     if find_top_level(tokens, {"between", "in"}) is not None:
-        return validateComparison(tokens)
+        return validateComparison(tokens, clause)
 
-    # Split on top-level logical operator
+    # Split on top-level AND / OR
     idx = find_top_level(tokens, LOGICAL_OPS)
     if idx is not None:
         left = tokens[:idx]
@@ -92,16 +100,16 @@ def validateBooleanExpr(tokens):
         if not left or not right:
             return {"error": "Logical operator without operand"}
 
-        err = validateBooleanExpr(left)
+        err = validateBooleanExpr(left, clause)
         if err:
             return err
-        return validateBooleanExpr(right)
+        return validateBooleanExpr(right, clause)
 
     # No boolean operator → must be a comparison
-    return validateComparison(tokens)
+    return validateComparison(tokens, clause)
 
 
-# Finds the index of a target token at top parenthesis level
+# Finds the index of a target token at top-level (outside parentheses)
 def find_top_level(tokens, targets):
     depth = 0
     for i, tok in enumerate(tokens):
@@ -133,23 +141,21 @@ def split_top_level(tokens, separator):
     return parts
 
 
-
-
 # Routes comparison validation based on operator type
-def validateComparison(tokens):
+def validateComparison(tokens, clause):
     tokens = stripOuterParens(tokens)
 
     if find_top_level(tokens, {"in"}) is not None:
-        return validateIn(tokens)
+        return validateIn(tokens, clause)
 
     if find_top_level(tokens, {"between"}) is not None:
-        return validateBetween(tokens)
+        return validateBetween(tokens, clause)
 
-    return validateBinaryComparison(tokens)
+    return validateBinaryComparison(tokens, clause)
 
 
 # Validates IN expressions: lhs IN (value1, value2, ...)
-def validateIn(tokens):
+def validateIn(tokens, clause):
     idx = find_top_level(tokens, {"in"})
     lhs = tokens[:idx]
     rhs = tokens[idx + 1:]
@@ -157,7 +163,7 @@ def validateIn(tokens):
     if not lhs or not rhs:
         return {"error": "Incomplete IN expression"}
 
-    # RHS must be a parenthesized list
+    # RHS must be parenthesized
     if rhs[0] != "(" or rhs[-1] != ")":
         return {"error": "IN requires parenthesized list"}
 
@@ -175,11 +181,11 @@ def validateIn(tokens):
         if err:
             return err
 
-    return validateExpression(lhs, "where")
+    return validateExpression(lhs, clause)
 
 
 # Validates BETWEEN expressions: lhs BETWEEN low AND high
-def validateBetween(tokens):
+def validateBetween(tokens, clause):
     idx = find_top_level(tokens, {"between"})
     lhs = tokens[:idx]
     rest = tokens[idx + 1:]
@@ -199,20 +205,20 @@ def validateBetween(tokens):
         return {"error": "Incomplete BETWEEN bounds"}
 
     for part in (lhs, low, high):
-        err = validateExpression(part, "where")
+        err = validateExpression(part, clause)
         if err:
             return err
 
     return None
 
 
-# Validates binary comparisons like a = b, x >= y
-def validateBinaryComparison(tokens):
+# Validates binary comparisons like a = b or x >= y
+def validateBinaryComparison(tokens, clause):
     depth = 0
     op = None
     op_index = None
 
-    # Find exactly one top-level comparison operator
+    # Locate exactly one top-level comparison operator
     for i, tok in enumerate(tokens):
         if tok == "(":
             depth += 1
@@ -235,20 +241,23 @@ def validateBinaryComparison(tokens):
     if not lhs or not rhs:
         return {"error": "Incomplete comparison"}
 
-    err = validateExpression(lhs, "where")
+    err = validateExpression(lhs, clause)
     if err:
         return err
-    return validateExpression(rhs,  "where")
+    return validateExpression(rhs, clause)
+
 
 # Validates arithmetic and atomic expressions
 def validateExpression(tokens, clause):
-    # print(tokens)
 
+    # Allow SELECT *
+    if len(tokens) == 1 and tokens[0] == '*':
+        return None
+    
     tokens = stripOuterParens(tokens)
     if not tokens:
         return {"error": "Empty expression"}
 
-    # Simple state machine: operand → operator → operand
     expecting_operand = True
     i = 0
 
@@ -256,7 +265,8 @@ def validateExpression(tokens, clause):
         tok = tokens[i]
 
         if expecting_operand:
-            # Handle parenthesized sub-expression
+
+            # Parenthesized sub-expression
             if tok == "(":
                 depth = 1
                 j = i + 1
@@ -279,13 +289,20 @@ def validateExpression(tokens, clause):
                 i = j
                 continue
 
+            # Qualified column reference (table.column)
             if isQualifiedColumnAt(tokens, i):
                 expecting_operand = False
                 i += 3
                 continue
 
-            # aggregate function as operand
+            # Aggregate function as operand
             if tok in AGG_FUNCS:
+                if clause == 'where':
+                    return {
+                        "error": "Aggregate functions are not allowed in WHERE clause",
+                        "function": tok
+                    }
+
                 result = consumeAggregate(tokens, i)
                 if result is None:
                     return {
@@ -294,7 +311,6 @@ def validateExpression(tokens, clause):
                     }
 
                 end, inner = result
-
                 if not inner:
                     return {
                         "error": "Empty expression inside aggregate function",
@@ -309,7 +325,6 @@ def validateExpression(tokens, clause):
                 i = end
                 continue
 
-
             # Atomic operand: column or numeric literal
             if isColumnToken(tok) or tok.isnumeric():
                 expecting_operand = False
@@ -323,7 +338,7 @@ def validateExpression(tokens, clause):
             }
 
         else:
-            # After operand, only arithmetic operators are allowed
+            # Expect arithmetic operator
             if tok in ARITHMETIC_OPS:
                 expecting_operand = True
                 i += 1
@@ -335,6 +350,7 @@ def validateExpression(tokens, clause):
                 "token": tok
             }
 
+    # Expression cannot end while expecting an operand
     if expecting_operand:
         return {"error": "Expression cannot end with operator"}
 

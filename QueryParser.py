@@ -1,13 +1,43 @@
 from select.selectParser import SelectParser
 
+
 class QueryParser:
+    """
+    Top-level SQL query parser and dispatcher.
+
+    Responsibilities:
+    - Tokenize raw SQL input
+    - Validate query-level syntax (semicolon, empty query)
+    - Route query to the appropriate statement parser
+    """
 
     def __init__(self, query):
         self.query = query
-        self.queryTypes = ['select', 'insert', 'update', 'alter', 'drop', 'delete', 'truncate', 'create']
-        self.comparators  = {"=", "!=", "<", ">", "<=", ">="}
+
+        # Supported SQL statement types
+        self.queryTypes = [
+            'select', 'insert', 'update',
+            'alter', 'drop', 'delete',
+            'truncate', 'create'
+        ]
+
+        # Comparison operators (used by tokenization / validation)
+        self.comparators = {"=", "!=", "<", ">", "<=", ">="}
+
+    # ---------------------------------------------------------
+    # Tokenization
+    # ---------------------------------------------------------
 
     def tokenize(self):
+        """
+        Converts raw SQL string into a list of tokens.
+
+        Rules:
+        - Identifiers are lowercased
+        - Operators are grouped (<=, >=, !=)
+        - Symbols are emitted as standalone tokens
+        - Whitespace is ignored
+        """
         sql = self.query.strip()
         tokens = []
         word = ""
@@ -18,15 +48,18 @@ class QueryParser:
         while i < len(sql):
             ch = sql[i]
 
+            # Build identifiers (letters, digits, underscore)
             if ch.isalnum() or ch == "_":
                 word += ch
                 i += 1
                 continue
 
+            # Flush accumulated identifier
             if word:
                 tokens.append(word.lower())
                 word = ""
 
+            # Operator token (possibly multi-character)
             if ch in OP_CHARS:
                 op = ch
                 i += 1
@@ -36,23 +69,30 @@ class QueryParser:
                 tokens.append(op)
                 continue
 
-            if ch in {",", "(", ")", ";", "*", '+', '-', '/', '%', '.'}:
+            # Single-character tokens
+            if ch in {",", "(", ")", ";", "*", "+", "-", "/", "%", "."}:
                 tokens.append(ch)
                 i += 1
                 continue
 
+            # Ignore whitespace and unknown characters
             i += 1
 
+        # Flush trailing identifier
         if word:
             tokens.append(word.lower())
 
-        # print(tokens)
-
         return tokens
 
+    # ---------------------------------------------------------
+    # Query routing
+    # ---------------------------------------------------------
 
     def route(self, token):
-
+        """
+        Routes the query to the appropriate statement parser
+        based on the first keyword.
+        """
         match token:
             case "select":
                 return SelectParser()
@@ -71,31 +111,48 @@ class QueryParser:
             case "insert":
                 pass
 
+    # ---------------------------------------------------------
+    # Query analysis entry point
+    # ---------------------------------------------------------
+
     def analyse(self):
-        
+        """
+        Main entry point for query validation.
+        Performs:
+        - Tokenization
+        - Semicolon validation
+        - Query type detection
+        - Delegation to statement-specific parser
+        """
         tokens = self.tokenize()
 
+        # Empty input
         if not tokens:
             return {
                 "error": "empty query"
             }
-        
+
+        # Semicolon validation
         if ";" in tokens:
             if tokens[-1] != ";":
                 return {
                     "error": "Invalid semicolon usage",
                     "why": "semicolon is only allowed at the end of the query"
                 }
-            
+
+            # Remove trailing semicolon
             tokens = tokens[:-1]
-            if tokens and tokens[:-1]:
+
+            # Reject multiple semicolons
+            if tokens and tokens[-1] == ";":
                 return {
                     "error": "Multiple semicolon not allowed"
                 }
-            
+
         if not tokens:
             return {"empty query"}
 
+        # Determine query type
         queryType = tokens[0]
 
         if queryType not in self.queryTypes:
@@ -104,5 +161,6 @@ class QueryParser:
                 "Issue": "The start token is not a valid sql keyword"
             }
 
+        # Route to appropriate parser
         parser = self.route(queryType)
         return parser.analyse(tokens)
