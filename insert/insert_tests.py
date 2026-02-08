@@ -1,4 +1,4 @@
-from insert.insert_parser import parse_insert
+from insert.insert_parser import InsertParser
 from insert.insert_validator import validate_insert
 from insert.insert_suggestions import suggest_insert_fix
 
@@ -8,7 +8,8 @@ def run_test(query: str):
     print("QUERY:")
     print(query)
 
-    parsed = parse_insert(query)
+    parser = InsertParser()
+    parsed = parser.parse_insert(query)
     errors = validate_insert(parsed)
     suggestion = suggest_insert_fix(query, parsed, errors)
 
