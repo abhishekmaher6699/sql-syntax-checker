@@ -10,7 +10,7 @@ class InsertValidator:
     - Validate column–value consistency
     """
 
-    def validate_insert(parsed: dict) -> list:
+    def validate_insert(self, parsed: dict) -> list:
         """
         Validates the structure of an INSERT SQL query.
         Returns a list of InsertError objects.

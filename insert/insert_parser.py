@@ -9,7 +9,7 @@ class InsertParser:
     - Perform NO validation
     """
     
-    def parse_insert(query: str) -> dict:
+    def parse_insert(self, query: str) -> dict:
         """
         Parses a raw INSERT SQL query and extracts the table name, columns (if provided), and values.
         """

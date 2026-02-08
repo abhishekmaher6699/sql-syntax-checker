@@ -1,3 +1,6 @@
+from html import parser
+
+from pydantic import validator
 from insert.insert_parser import InsertParser
 from insert.insert_validator import InsertValidator
 from insert.insert_suggestions import InsertSuggester
@@ -9,9 +12,12 @@ def run_test(query: str):
     print(query)
 
     parser = InsertParser()
+    validator = InsertValidator()
+    suggester = InsertSuggester()
+    
     parsed = parser.parse_insert(query)
-    errors = InsertValidator.validate_insert(parsed)
-    suggestion = InsertSuggester.suggest_insert_fix(query, parsed, errors)
+    errors = validator.validate_insert(parsed)
+    suggestion = suggester.suggest_insert_fix(query, parsed, errors)
 
     print("\nERRORS:")
     if not errors:

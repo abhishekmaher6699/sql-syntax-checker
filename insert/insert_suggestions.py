@@ -3,7 +3,7 @@ class InsertSuggester:
     Generates safe correction suggestions for INSERT queries.
     """
     
-    def suggest_insert_fix(raw_query: str, parsed: dict, errors: list):
+    def suggest_insert_fix(self, raw_query: str, parsed: dict, errors: list):
         """
         Generates a suggested corrected INSERT query
         when the fix is unambiguous.
