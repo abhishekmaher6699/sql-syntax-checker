@@ -1,0 +1,26 @@
+GRANT Syntax Checker Module
+----------------------------
+
+Approach:
+1. Tokenize query input.
+2. Confirm query starts with GRANT.
+3. Validate presence of ON and TO clauses.
+4. Verify clause order.
+5. Extract privilege, table, and user.
+6. Provide clear error explanations.
+7. Suggest corrected query when possible.
+
+Techniques Used:
+- Rule-based parsing
+- Token position checking
+- Clause validation
+
+Limitations:
+- Database schema not validated.
+- Only simple GRANT syntax supported.
+- Multiple privileges not handled.
+
+Future Improvements:
+- Multiple privilege handling
+- Role and group permissions
+- SQL dialect support

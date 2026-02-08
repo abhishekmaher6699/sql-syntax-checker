@@ -1,0 +1,24 @@
+-- Correct Queries
+GRANT SELECT ON students TO user1;
+GRANT INSERT ON employees TO admin;
+GRANT UPDATE ON accounts TO manager;
+GRANT DELETE ON orders TO staff;
+GRANT ALL ON database1 TO root;
+
+-- Missing Clauses
+GRANT SELECT students TO user1;
+GRANT SELECT ON students user1;
+GRANT SELECT ON students;
+
+-- Wrong Order
+GRANT SELECT TO user1 ON students;
+
+-- Missing Parts
+GRANT ON students TO user1;
+GRANT SELECT ON TO user1;
+GRANT SELECT ON students TO;
+
+-- Spelling Mistakes
+GRNAT SELECT ON students TO user1;
+GRANT SELEC ON students TO user1;
+GRANT SELECT OM students TO user1;

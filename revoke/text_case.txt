@@ -1,0 +1,24 @@
+-- Correct Queries
+REVOKE SELECT ON students FROM user1;   
+REVOKE INSERT ON employees FROM admin;
+REVOKE UPDATE ON accounts FROM manager;
+REVOKE DELETE ON orders FROM staff;
+REVOKE ALL ON database1 FROM root;
+
+-- Missing Clauses
+REVOKE SELECT students FROM user1;
+REVOKE SELECT ON students user1;
+REVOKE SELECT ON students;
+
+-- Wrong Order
+REVOKE SELECT FROM user1 ON students;
+
+-- Missing Parts
+REVOKE ON students FROM user1;
+REVOKE SELECT ON FROM user1;
+REVOKE SELECT ON students FROM;
+
+-- Spelling Mistakes
+REVKE SELECT ON students FROM user1;
+REVOKE SELEC ON students FROM user1;
+REVOKE SELECT OM students FROM user1;
